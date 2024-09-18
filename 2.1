@@ -1,0 +1,28 @@
+Для выполнения первого задания ты будешь работать с **персональным сервером**, на котором установлены PostgreSQL и Oracle. Поскольку именно на нём создаются пользователи и схемы в базах данных, все команды нужно выполнять там.
+
+### Для PostgreSQL:
+1. Подключись к **персональному серверу** через консоль (без графического интерфейса) и выполни следующие шаги:
+   ```bash
+   psql -U postgres
+   ```
+   Это подключение к PostgreSQL, установленному на персональном сервере.
+   
+   Далее выполни команды:
+   ```sql
+   CREATE USER user_b WITH PASSWORD 'password_b';
+   CREATE SCHEMA AUTHORIZATION user_b;
+   GRANT ALL PRIVILEGES ON SCHEMA user_b TO user_b;
+   ```
+
+### Для Oracle:
+1. Также работаем на **персональном сервере**, подключаясь к Oracle через консоль:
+   ```bash
+   sqlplus sys as sysdba
+   ```
+   
+   Затем выполняешь следующие команды:
+   ```sql
+   CREATE USER user_b IDENTIFIED BY password_b;
+   GRANT CONNECT, RESOURCE TO user_b;
+   GRANT ALL PRIVILEGES TO user_b;
+   ```
