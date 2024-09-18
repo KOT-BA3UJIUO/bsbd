@@ -1,0 +1,91 @@
+### Шестое задание: **Повторять задания 4 и 5 для большинства операций GRANT. Цель — поочередно выдавать разные права, не допуская использования GRANT ALL**.
+
+Тебе нужно поочередно выдавать права пользователю С на выполнение различных операций с таблицами пользователя Б (например, `SELECT`, `INSERT`, `DELETE`, `UPDATE`, `ALTER`), и проверять, как это влияет на доступ к таблицам.
+
+### PostgreSQL
+
+1. **Подключись к PostgreSQL от имени суперпользователя А**:
+   ```bash
+   psql -U postgres
+   ```
+
+2. **Выдай различные права пользователю С на таблицу `students`**:
+
+   - Права на чтение (оператор `SELECT`):
+     ```sql
+     GRANT SELECT ON user_b.students TO user_c;
+     ```
+
+   - Права на вставку данных (оператор `INSERT`):
+     ```sql
+     GRANT INSERT ON user_b.students TO user_c;
+     ```
+
+   - Права на удаление данных (оператор `DELETE`):
+     ```sql
+     GRANT DELETE ON user_b.students TO user_c;
+     ```
+
+3. **Проверь доступ к этим операциям**:
+
+   Подключись как пользователь С и попробуй выполнить разные запросы:
+
+   - Чтение данных:
+     ```sql
+     SELECT * FROM user_b.students;
+     ```
+
+   - Вставка данных:
+     ```sql
+     INSERT INTO user_b.students (name, age) VALUES ('Jane Doe', 20);
+     ```
+
+   - Удаление данных:
+     ```sql
+     DELETE FROM user_b.students WHERE name = 'Jane Doe';
+     ```
+
+### Oracle
+
+1. **Подключись к Oracle от имени суперпользователя А**:
+   ```bash
+   sqlplus sys as sysdba
+   ```
+
+2. **Выдай различные права пользователю С на таблицу `students`**:
+
+   - Права на чтение (оператор `SELECT`):
+     ```sql
+     GRANT SELECT ON user_b.students TO user_c;
+     ```
+
+   - Права на вставку данных (оператор `INSERT`):
+     ```sql
+     GRANT INSERT ON user_b.students TO user_c;
+     ```
+
+   - Права на удаление данных (оператор `DELETE`):
+     ```sql
+     GRANT DELETE ON user_b.students TO user_c;
+     ```
+
+3. **Проверь доступ к этим операциям**:
+
+   Подключись как пользователь С и попробуй выполнить разные запросы:
+
+   - Чтение данных:
+     ```sql
+     SELECT * FROM user_b.students;
+     ```
+
+   - Вставка данных:
+     ```sql
+     INSERT INTO user_b.students (name, age) VALUES ('Jane Doe', 20);
+     ```
+
+   - Удаление данных:
+     ```sql
+     DELETE FROM user_b.students WHERE name = 'Jane Doe';
+     ```
+
+После того как ты поочередно выдашь права на каждую операцию и проверишь их выполнение, можем перейти к следующему заданию. Сообщи о результате!
