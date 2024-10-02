@@ -1,0 +1,45 @@
+-- Создание пользователя
+CREATE USER user_d IDENTIFIED BY password_d;
+
+-- Создание роли для чтения данных
+CREATE ROLE read_only_role;
+GRANT SELECT ON employees TO read_only_role;
+
+-- Назначение роли пользователю
+GRANT read_only_role TO user_d;
+
+-- Создание роли для вставки данных
+CREATE ROLE data_entry_role;
+GRANT INSERT ON employees TO data_entry_role;
+
+-- Создание роли для менеджера, которая наследует права data_entry_role
+CREATE ROLE manager_role;
+GRANT data_entry_role TO manager_role;
+
+-- Назначение менеджерской роли пользователю
+GRANT manager_role TO user_d;
+
+-- Пользователь включает роль
+SET ROLE manager_role;
+
+-- Пользователь выполняет вставку данных
+INSERT INTO employees (employee_id, first_name, last_name, email, hire_date, job_id) 
+VALUES (301, 'Alice', 'Wonder', 'alice@example.com', SYSDATE, 'HR_REP');
+
+-- Пользователь отключает роль
+RESET ROLE;
+
+-- Отбор роли у пользователя
+REVOKE manager_role FROM user_d;
+
+-- Удаление роли
+DROP ROLE manager_role;
+
+-- Создание роли с логином
+CREATE ROLE login_role WITH LOGIN;
+GRANT CREATE SESSION TO login_role;
+
+-- Назначение роли пользователю
+GRANT login_role TO user_d;
+
+
