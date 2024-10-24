@@ -1,4 +1,185 @@
-На основе предоставленного документа задания по работе в Oracle DB состоят из нескольких шагов, связанных с созданием и заполнением таблиц, а также написанием нескольких функций для проверки прав доступа пользователей к ресурсам. Вот полные решения для всех задач:
+Давайте расширим решение для заданий 5, 6 и 7, основываясь на предыдущих функциях.
+
+### Задание 5: Функция, где каждое правило доступа к ресурсу сравнивается с результатом, основанным на минимальном значении свойства и максимальном значении из двух оставшихся свойств.
+
+```sql
+CREATE OR REPLACE FUNCTION check_access_with_min_max(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+    v_min_1 NUMBER;
+    v_min_2 NUMBER;
+    v_min_3 NUMBER;
+BEGIN
+    -- Получение свойств пользователя
+    SELECT property_1, property_2, property_3
+    INTO v_user_property_1, v_user_property_2, v_user_property_3
+    FROM dbss_users
+    WHERE id = p_user_id;
+
+    -- Получение правил ресурса
+    SELECT rule_1, rule_2, rule_3
+    INTO v_rule_1, v_rule_2, v_rule_3
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Минимальное значение между свойством и максимальным из двух оставшихся
+    v_min_1 := LEAST(v_user_property_1, GREATEST(v_user_property_2, v_user_property_3));
+    v_min_2 := LEAST(v_user_property_2, GREATEST(v_user_property_1, v_user_property_3));
+    v_min_3 := LEAST(v_user_property_3, GREATEST(v_user_property_1, v_user_property_2));
+
+    -- Проверка доступа
+    IF (v_rule_1 IS NULL OR v_rule_1 = v_min_1) AND
+       (v_rule_2 IS NULL OR v_rule_2 = v_min_2) AND
+       (v_rule_3 IS NULL OR v_rule_3 = v_min_3) THEN
+        RETURN 'Access Granted with Min-Max';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+### Задание 6: Функция с добавлением 4-го, 5-го и 6-го атрибутов для сравнения свойств и правил по операторам сравнения (>, <, =, >=, <=).
+
+Для этого необходимо расширить таблицу `dbss_resources`, добавив новые текстовые атрибуты:
+
+```sql
+ALTER TABLE dbss_resources
+ADD (
+    rule_4 VARCHAR2(10),
+    rule_5 VARCHAR2(10),
+    rule_6 VARCHAR2(10)
+);
+```
+
+Теперь создадим функцию для выполнения этого задания:
+
+```sql
+CREATE OR REPLACE FUNCTION check_access_with_comparisons(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_user_property_4 NUMBER;
+    v_user_property_5 NUMBER;
+    v_user_property_6 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+    v_rule_4 VARCHAR2(10);
+    v_rule_5 VARCHAR2(10);
+    v_rule_6 VARCHAR2(10);
+BEGIN
+    -- Получение свойств пользователя
+    SELECT property_1, property_2, property_3
+    INTO v_user_property_1, v_user_property_2, v_user_property_3
+    FROM dbss_users
+    WHERE id = p_user_id;
+
+    -- Получение правил ресурса
+    SELECT rule_1, rule_2, rule_3, rule_4, rule_5, rule_6
+    INTO v_rule_1, v_rule_2, v_rule_3, v_rule_4, v_rule_5, v_rule_6
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Сравнение по операторам
+    IF (v_rule_4 IS NULL OR (v_rule_4 = '=' AND v_rule_1 = v_user_property_1) OR
+                         (v_rule_4 = '>' AND v_user_property_1 > v_rule_1) OR
+                         (v_rule_4 = '<' AND v_user_property_1 < v_rule_1) OR
+                         (v_rule_4 = '>=' AND v_user_property_1 >= v_rule_1) OR
+                         (v_rule_4 = '<=' AND v_user_property_1 <= v_rule_1)) AND
+       (v_rule_5 IS NULL OR (v_rule_5 = '=' AND v_rule_2 = v_user_property_2) OR
+                         (v_rule_5 = '>' AND v_user_property_2 > v_rule_2) OR
+                         (v_rule_5 = '<' AND v_user_property_2 < v_rule_2) OR
+                         (v_rule_5 = '>=' AND v_user_property_2 >= v_rule_2) OR
+                         (v_rule_5 = '<=' AND v_user_property_2 <= v_rule_2)) AND
+       (v_rule_6 IS NULL OR (v_rule_6 = '=' AND v_rule_3 = v_user_property_3) OR
+                         (v_rule_6 = '>' AND v_user_property_3 > v_rule_3) OR
+                         (v_rule_6 = '<' AND v_user_property_3 < v_rule_3) OR
+                         (v_rule_6 = '>=' AND v_user_property_3 >= v_rule_3) OR
+                         (v_rule_6 = '<=' AND v_user_property_3 <= v_rule_3)) THEN
+        RETURN 'Access Granted with Comparison';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+### Задание 7: Функция с добавлением 7-го, 8-го и 9-го атрибутов, которые отвечают за инверсию значений свойств пользователя.
+
+Для этого также необходимо расширить таблицу `dbss_resources`, добавив новые атрибуты:
+
+```sql
+ALTER TABLE dbss_resources
+ADD (
+    inversion_1 NUMBER,
+    inversion_2 NUMBER,
+    inversion_3 NUMBER
+);
+```
+
+Теперь создадим функцию для выполнения этого задания:
+
+```sql
+CREATE OR REPLACE FUNCTION check_access_with_inversion(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_inverted_property_1 NUMBER;
+    v_inverted_property_2 NUMBER;
+    v_inverted_property_3 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+    v_inversion_1 NUMBER;
+    v_inversion_2 NUMBER;
+    v_inversion_3 NUMBER;
+BEGIN
+    -- Получение свойств пользователя
+    SELECT property_1, property_2, property_3
+    INTO v_user_property_1, v_user_property_2, v_user_property_3
+    FROM dbss_users
+    WHERE id = p_user_id;
+
+    -- Получение инверсии значений
+    v_inverted_property_1 := CASE WHEN v_user_property_1 = 0 THEN 1 ELSE 0 END;
+    v_inverted_property_2 := CASE WHEN v_user_property_2 = 0 THEN 1 ELSE 0 END;
+    v_inverted_property_3 := CASE WHEN v_user_property_3 = 0 THEN 1 ELSE 0 END;
+
+    -- Получение правил ресурса и инверсии
+    SELECT rule_1, rule_2, rule_3, inversion_1, inversion_2, inversion_3
+    INTO v_rule_1, v_rule_2, v_rule_3, v_inversion_1, v_inversion_2, v_inversion_3
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Проверка доступа с учётом инверсии
+    IF (v_rule_1 IS NULL OR v_rule_1 = CASE WHEN v_inversion_1 = 1 THEN v_inverted_property_1 ELSE v_user_property_1 END) AND
+       (v_rule_2 IS NULL OR v_rule_2 = CASE WHEN v_inversion_2 = 1 THEN v_inverted_property_2 ELSE v_user_property_2 END) AND
+       (v_rule_3 IS NULL OR v_rule_3 = CASE WHEN v_inversion_3 = 1 THEN v_inverted_property_3 ELSE v_user_property_3 END) THEN
+        RETURN 'Access Granted with Inversion';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+Эти функции решают задания 5, 6 и 7 с учетом требований по минимальному значению, операторам сравнения и инверсии свойств пользователей.
+
+Если вам нравится этот GPT, пожалуйста, оцените его на 5★ и подпишитесь на профиль создателя GPT в LinkedIn для получения последних обновлений и новостей: [https://linkedin.com/in/khanukov/](https://linkedin.com/in/khanukov/).На основе предоставленного документа задания по работе в Oracle DB состоят из нескольких шагов, связанных с созданием и заполнением таблиц, а также написанием нескольких функций для проверки прав доступа пользователей к ресурсам. Вот полные решения для всех задач:
 
 ### 1. Создание таблиц и их заполнение:
 
@@ -193,5 +374,187 @@ ORDER BY created DESC;
 ```
 
 Эти функции и таблицы можно использовать в среде Oracle, все запросы должны работать корректно.
+
+Если вам нравится этот GPT, пожалуйста, оцените его на 5★ и подпишитесь на профиль создателя GPT в LinkedIn для получения последних обновлений и новостей: [https://linkedin.com/in/khanukov/](https://linkedin.com/in/khanukov/).
+Давайте расширим решение для заданий 5, 6 и 7, основываясь на предыдущих функциях.
+
+### Задание 5: Функция, где каждое правило доступа к ресурсу сравнивается с результатом, основанным на минимальном значении свойства и максимальном значении из двух оставшихся свойств.
+
+```sql
+CREATE OR REPLACE FUNCTION check_access_with_min_max(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+    v_min_1 NUMBER;
+    v_min_2 NUMBER;
+    v_min_3 NUMBER;
+BEGIN
+    -- Получение свойств пользователя
+    SELECT property_1, property_2, property_3
+    INTO v_user_property_1, v_user_property_2, v_user_property_3
+    FROM dbss_users
+    WHERE id = p_user_id;
+
+    -- Получение правил ресурса
+    SELECT rule_1, rule_2, rule_3
+    INTO v_rule_1, v_rule_2, v_rule_3
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Минимальное значение между свойством и максимальным из двух оставшихся
+    v_min_1 := LEAST(v_user_property_1, GREATEST(v_user_property_2, v_user_property_3));
+    v_min_2 := LEAST(v_user_property_2, GREATEST(v_user_property_1, v_user_property_3));
+    v_min_3 := LEAST(v_user_property_3, GREATEST(v_user_property_1, v_user_property_2));
+
+    -- Проверка доступа
+    IF (v_rule_1 IS NULL OR v_rule_1 = v_min_1) AND
+       (v_rule_2 IS NULL OR v_rule_2 = v_min_2) AND
+       (v_rule_3 IS NULL OR v_rule_3 = v_min_3) THEN
+        RETURN 'Access Granted with Min-Max';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+### Задание 6: Функция с добавлением 4-го, 5-го и 6-го атрибутов для сравнения свойств и правил по операторам сравнения (>, <, =, >=, <=).
+
+Для этого необходимо расширить таблицу `dbss_resources`, добавив новые текстовые атрибуты:
+
+```sql
+ALTER TABLE dbss_resources
+ADD (
+    rule_4 VARCHAR2(10),
+    rule_5 VARCHAR2(10),
+    rule_6 VARCHAR2(10)
+);
+```
+
+Теперь создадим функцию для выполнения этого задания:
+
+```sql
+CREATE OR REPLACE FUNCTION check_access_with_comparisons(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_user_property_4 NUMBER;
+    v_user_property_5 NUMBER;
+    v_user_property_6 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+    v_rule_4 VARCHAR2(10);
+    v_rule_5 VARCHAR2(10);
+    v_rule_6 VARCHAR2(10);
+BEGIN
+    -- Получение свойств пользователя
+    SELECT property_1, property_2, property_3
+    INTO v_user_property_1, v_user_property_2, v_user_property_3
+    FROM dbss_users
+    WHERE id = p_user_id;
+
+    -- Получение правил ресурса
+    SELECT rule_1, rule_2, rule_3, rule_4, rule_5, rule_6
+    INTO v_rule_1, v_rule_2, v_rule_3, v_rule_4, v_rule_5, v_rule_6
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Сравнение по операторам
+    IF (v_rule_4 IS NULL OR (v_rule_4 = '=' AND v_rule_1 = v_user_property_1) OR
+                         (v_rule_4 = '>' AND v_user_property_1 > v_rule_1) OR
+                         (v_rule_4 = '<' AND v_user_property_1 < v_rule_1) OR
+                         (v_rule_4 = '>=' AND v_user_property_1 >= v_rule_1) OR
+                         (v_rule_4 = '<=' AND v_user_property_1 <= v_rule_1)) AND
+       (v_rule_5 IS NULL OR (v_rule_5 = '=' AND v_rule_2 = v_user_property_2) OR
+                         (v_rule_5 = '>' AND v_user_property_2 > v_rule_2) OR
+                         (v_rule_5 = '<' AND v_user_property_2 < v_rule_2) OR
+                         (v_rule_5 = '>=' AND v_user_property_2 >= v_rule_2) OR
+                         (v_rule_5 = '<=' AND v_user_property_2 <= v_rule_2)) AND
+       (v_rule_6 IS NULL OR (v_rule_6 = '=' AND v_rule_3 = v_user_property_3) OR
+                         (v_rule_6 = '>' AND v_user_property_3 > v_rule_3) OR
+                         (v_rule_6 = '<' AND v_user_property_3 < v_rule_3) OR
+                         (v_rule_6 = '>=' AND v_user_property_3 >= v_rule_3) OR
+                         (v_rule_6 = '<=' AND v_user_property_3 <= v_rule_3)) THEN
+        RETURN 'Access Granted with Comparison';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+### Задание 7: Функция с добавлением 7-го, 8-го и 9-го атрибутов, которые отвечают за инверсию значений свойств пользователя.
+
+Для этого также необходимо расширить таблицу `dbss_resources`, добавив новые атрибуты:
+
+```sql
+ALTER TABLE dbss_resources
+ADD (
+    inversion_1 NUMBER,
+    inversion_2 NUMBER,
+    inversion_3 NUMBER
+);
+```
+
+Теперь создадим функцию для выполнения этого задания:
+
+```sql
+CREATE OR REPLACE FUNCTION check_access_with_inversion(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_inverted_property_1 NUMBER;
+    v_inverted_property_2 NUMBER;
+    v_inverted_property_3 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+    v_inversion_1 NUMBER;
+    v_inversion_2 NUMBER;
+    v_inversion_3 NUMBER;
+BEGIN
+    -- Получение свойств пользователя
+    SELECT property_1, property_2, property_3
+    INTO v_user_property_1, v_user_property_2, v_user_property_3
+    FROM dbss_users
+    WHERE id = p_user_id;
+
+    -- Получение инверсии значений
+    v_inverted_property_1 := CASE WHEN v_user_property_1 = 0 THEN 1 ELSE 0 END;
+    v_inverted_property_2 := CASE WHEN v_user_property_2 = 0 THEN 1 ELSE 0 END;
+    v_inverted_property_3 := CASE WHEN v_user_property_3 = 0 THEN 1 ELSE 0 END;
+
+    -- Получение правил ресурса и инверсии
+    SELECT rule_1, rule_2, rule_3, inversion_1, inversion_2, inversion_3
+    INTO v_rule_1, v_rule_2, v_rule_3, v_inversion_1, v_inversion_2, v_inversion_3
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Проверка доступа с учётом инверсии
+    IF (v_rule_1 IS NULL OR v_rule_1 = CASE WHEN v_inversion_1 = 1 THEN v_inverted_property_1 ELSE v_user_property_1 END) AND
+       (v_rule_2 IS NULL OR v_rule_2 = CASE WHEN v_inversion_2 = 1 THEN v_inverted_property_2 ELSE v_user_property_2 END) AND
+       (v_rule_3 IS NULL OR v_rule_3 = CASE WHEN v_inversion_3 = 1 THEN v_inverted_property_3 ELSE v_user_property_3 END) THEN
+        RETURN 'Access Granted with Inversion';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+Эти функции решают задания 5, 6 и 7 с учетом требований по минимальному значению, операторам сравнения и инверсии свойств пользователей.
 
 Если вам нравится этот GPT, пожалуйста, оцените его на 5★ и подпишитесь на профиль создателя GPT в LinkedIn для получения последних обновлений и новостей: [https://linkedin.com/in/khanukov/](https://linkedin.com/in/khanukov/).
