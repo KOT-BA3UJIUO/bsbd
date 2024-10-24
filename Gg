@@ -1,0 +1,197 @@
+На основе предоставленного документа задания по работе в Oracle DB состоят из нескольких шагов, связанных с созданием и заполнением таблиц, а также написанием нескольких функций для проверки прав доступа пользователей к ресурсам. Вот полные решения для всех задач:
+
+### 1. Создание таблиц и их заполнение:
+
+#### Таблица пользователей:
+
+```sql
+CREATE TABLE dbss_users (
+    id NUMBER,
+    user_name VARCHAR2(4000 CHAR),
+    property_1 NUMBER,
+    property_2 NUMBER,
+    property_3 NUMBER
+);
+
+BEGIN
+    FOR i IN 1..10 LOOP
+        INSERT INTO dbss_users VALUES (
+            i,
+            'user_' || i,
+            CASE WHEN dbms_random.value(0, 3) < 2 THEN 0 ELSE 1 END,
+            CASE WHEN dbms_random.value(0, 3) < 2 THEN 0 ELSE 1 END,
+            CASE WHEN dbms_random.value(0, 3) < 2 THEN 0 ELSE 1 END
+        );
+    END LOOP;
+END;
+/
+```
+
+#### Таблица ресурсов:
+
+```sql
+CREATE TABLE dbss_resources (
+    id NUMBER,
+    resource_name VARCHAR2(4000 CHAR),
+    rule_1 NUMBER,
+    rule_2 NUMBER,
+    rule_3 NUMBER
+);
+
+BEGIN
+    FOR i IN 1..10 LOOP
+        INSERT INTO dbss_resources VALUES (
+            i,
+            'resource_' || i,
+            CASE WHEN dbms_random.value(0, 3) < 1 THEN 0 WHEN dbms_random.value(0, 3) < 2 THEN 1 END,
+            CASE WHEN dbms_random.value(0, 3) < 1 THEN 0 WHEN dbms_random.value(0, 3) < 2 THEN 1 END,
+            CASE WHEN dbms_random.value(0, 3) < 1 THEN 0 WHEN dbms_random.value(0, 3) < 2 THEN 1 END
+        );
+    END LOOP;
+END;
+/
+```
+
+### 2. Функции для проверки прав доступа
+
+#### Задание 1: Функция проверки соответствия свойств пользователя и правил доступа к ресурсу:
+
+```sql
+CREATE OR REPLACE FUNCTION check_access(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+BEGIN
+    -- Получение свойств пользователя
+    SELECT property_1, property_2, property_3
+    INTO v_user_property_1, v_user_property_2, v_user_property_3
+    FROM dbss_users
+    WHERE id = p_user_id;
+
+    -- Получение правил ресурса
+    SELECT rule_1, rule_2, rule_3
+    INTO v_rule_1, v_rule_2, v_rule_3
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Проверка доступа
+    IF (v_rule_1 IS NULL OR v_rule_1 = v_user_property_1) AND
+       (v_rule_2 IS NULL OR v_rule_2 = v_user_property_2) AND
+       (v_rule_3 IS NULL OR v_rule_3 = v_user_property_3) THEN
+        RETURN 'Access Granted';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+#### Задание 2: Функция для проверки доступности всех ресурсов для пользователя и возврата первого ресурса с запрещённым доступом:
+
+```sql
+CREATE OR REPLACE FUNCTION check_first_denied_resource(
+    p_user_id NUMBER
+) RETURN VARCHAR2 IS
+    v_resource_name VARCHAR2(4000);
+    v_status VARCHAR2(20);
+BEGIN
+    FOR rec IN (SELECT id, resource_name FROM dbss_resources) LOOP
+        v_status := check_access(p_user_id, rec.id);
+        IF v_status = 'Access Denied' THEN
+            RETURN 'Access denied to resource: ' || rec.resource_name;
+        END IF;
+    END LOOP;
+
+    RETURN 'Access granted to all resources';
+END;
+/
+```
+
+#### Задание 3: Функция для проверки доступности всех ресурсов для пользователя и возврата списка ресурсов с запрещённым доступом:
+
+```sql
+CREATE OR REPLACE FUNCTION check_all_denied_resources(
+    p_user_id NUMBER
+) RETURN VARCHAR2 IS
+    v_resource_name VARCHAR2(4000);
+    v_status VARCHAR2(20);
+    v_denied_resources VARCHAR2(4000) := '';
+    v_count NUMBER := 0;
+BEGIN
+    FOR rec IN (SELECT id, resource_name FROM dbss_resources) LOOP
+        v_status := check_access(p_user_id, rec.id);
+        IF v_status = 'Access Denied' THEN
+            v_denied_resources := v_denied_resources || rec.resource_name || ', ';
+            v_count := v_count + 1;
+        END IF;
+    END LOOP;
+
+    IF v_count > 0 THEN
+        RETURN 'Access denied to resources: ' || RTRIM(v_denied_resources, ', ') || '. Total denied: ' || v_count;
+    ELSE
+        RETURN 'Access granted to all resources';
+    END IF;
+END;
+/
+```
+
+#### Задание 4: Функция с делегированием прав (расширение первой функции):
+
+```sql
+CREATE OR REPLACE FUNCTION check_access_with_delegation(
+    p_user_id NUMBER,
+    p_resource_id NUMBER
+) RETURN VARCHAR2 IS
+    v_user_property_1 NUMBER;
+    v_user_property_2 NUMBER;
+    v_user_property_3 NUMBER;
+    v_rule_1 NUMBER;
+    v_rule_2 NUMBER;
+    v_rule_3 NUMBER;
+    v_best_property_1 NUMBER := 0;
+    v_best_property_2 NUMBER := 0;
+    v_best_property_3 NUMBER := 0;
+BEGIN
+    -- Получение лучших свойств от всех пользователей
+    FOR rec IN (SELECT property_1, property_2, property_3 FROM dbss_users) LOOP
+        v_best_property_1 := GREATEST(v_best_property_1, rec.property_1);
+        v_best_property_2 := GREATEST(v_best_property_2, rec.property_2);
+        v_best_property_3 := GREATEST(v_best_property_3, rec.property_3);
+    END LOOP;
+
+    -- Получение правил ресурса
+    SELECT rule_1, rule_2, rule_3
+    INTO v_rule_1, v_rule_2, v_rule_3
+    FROM dbss_resources
+    WHERE id = p_resource_id;
+
+    -- Проверка доступа на основе лучших свойств
+    IF (v_rule_1 IS NULL OR v_rule_1 = v_best_property_1) AND
+       (v_rule_2 IS NULL OR v_rule_2 = v_best_property_2) AND
+       (v_rule_3 IS NULL OR v_rule_3 = v_best_property_3) THEN
+        RETURN 'Access Granted with Delegation';
+    ELSE
+        RETURN 'Access Denied';
+    END IF;
+END;
+/
+```
+
+### Последний запрос (как указано в документе):
+
+```sql
+SELECT object_name, created, last_ddl_time, timestamp, status
+FROM user_objects
+WHERE UPPER(object_type) LIKE UPPER('function')
+ORDER BY created DESC;
+```
+
+Эти функции и таблицы можно использовать в среде Oracle, все запросы должны работать корректно.
+
+Если вам нравится этот GPT, пожалуйста, оцените его на 5★ и подпишитесь на профиль создателя GPT в LinkedIn для получения последних обновлений и новостей: [https://linkedin.com/in/khanukov/](https://linkedin.com/in/khanukov/).
