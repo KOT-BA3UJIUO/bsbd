@@ -1,0 +1,414 @@
+СОздание основной таблицы
+-- Создание таблицы hotel_bookings
+CREATE TABLE hotel_bookings (
+   booking_id NUMBER PRIMARY KEY,            -- Уникальный идентификатор бронирования
+   guest_name VARCHAR2(100),                 -- Имя и фамилия гостя
+   guest_contact VARCHAR2(20),               -- Контактная информация (номер телефона в формате +7 (9**) ***-**-**)
+   room_number VARCHAR2(3),                  -- Номер комнаты (трехзначный номер по заданной маске)
+   check_in_date DATE,                       -- Дата заезда
+   check_out_date DATE,                      -- Дата выезда
+   booking_source VARCHAR2(50),              -- Источник бронирования (онлайн, агентство, напрямую)
+   room_type VARCHAR2(50),                   -- Тип комнаты (стандарт, люкс, делюкс, эконом)
+   price_per_night NUMBER(10, 2),            -- Цена за ночь
+   total_amount NUMBER(10, 2),               -- Общая сумма за бронирование
+   payment_status VARCHAR2(20)               -- Статус оплаты (оплачен, отменен)
+);
+
+-- Заполнение таблицы осмысленными данными
+BEGIN
+   -- Списки имен и фамилий
+   DECLARE
+      TYPE name_array IS TABLE OF VARCHAR2(50);
+      TYPE surname_array IS TABLE OF VARCHAR2(50);
+      
+      names name_array := name_array(
+         'Алексей', 'Иван', 'Николай', 'Петр', 'Максим', 'Дмитрий', 'Сергей', 'Андрей', 'Владимир', 'Евгений',
+         'Михаил', 'Юрий', 'Артем', 'Олег', 'Роман', 'Александр', 'Антон', 'Константин', 'Игорь', 'Виталий'
+      );
+      
+      surnames surname_array := surname_array(
+         'Иванов', 'Петров', 'Сидоров', 'Кузнецов', 'Смирнов', 'Попов', 'Соколов', 'Орлов', 'Тихонов', 'Зайцев',
+         'Крылов', 'Лебедев', 'Семенов', 'Федоров', 'Морозов', 'Волков', 'Ершов', 'Леонов', 'Соловьев', 'Макаров'
+      );
+
+      -- Установка фиксированной цены за ночь для каждого типа комнаты
+      v_standard_price NUMBER := 1500;
+      v_lux_price NUMBER := 3000;
+      v_deluxe_price NUMBER := 5000;
+      v_economy_price NUMBER := 1000;
+
+      -- Переменные для случайной даты, номера комнаты и других данных
+      v_start_date DATE := DATE '2022-01-01';           -- Самая ранняя дата
+      v_increment NUMBER := 730 / 1000;                 -- Интервал, чтобы даты равномерно приближались к настоящему
+      v_check_in_date DATE;
+      v_stay_length NUMBER;
+      v_phone_number VARCHAR2(20);
+      v_name VARCHAR2(50);
+      v_surname VARCHAR2(50);
+      v_room_number VARCHAR2(3);
+      v_room_type VARCHAR2(50);
+      v_price_per_night NUMBER;
+
+   BEGIN
+      FOR i IN 1..1000 LOOP
+         -- Случайный выбор имени и фамилии
+         v_name := names(TRUNC(DBMS_RANDOM.VALUE(1, names.COUNT + 1)));
+         v_surname := surnames(TRUNC(DBMS_RANDOM.VALUE(1, surnames.COUNT + 1)));
+
+         -- Генерация случайного номера комнаты по заданной маске
+         DECLARE
+            v_first_digit NUMBER := TRUNC(DBMS_RANDOM.VALUE(1, 10));     -- Первая цифра от 1 до 9
+            v_second_digit NUMBER := TRUNC(DBMS_RANDOM.VALUE(0, 7));     -- Вторая цифра от 0 до 6
+            v_third_digit NUMBER;
+         BEGIN
+            -- Если вторая цифра 0, третья цифра должна быть от 1 до 9
+            IF v_second_digit = 0 THEN
+               v_third_digit := TRUNC(DBMS_RANDOM.VALUE(1, 10));
+            ELSE
+               v_third_digit := TRUNC(DBMS_RANDOM.VALUE(0, 10));
+            END IF;
+            v_room_number := TO_CHAR(v_first_digit) || TO_CHAR(v_second_digit) || TO_CHAR(v_third_digit);
+         END;
+
+         -- Увеличение даты заезда с каждым циклом, приближаясь к текущему времени
+         v_check_in_date := v_start_date + TRUNC(v_increment * i);
+         v_stay_length := TRUNC(DBMS_RANDOM.VALUE(1, 15));  -- Продолжительность пребывания от 1 до 14 дней
+         
+         -- Генерация случайного номера телефона в формате +7 (9**) ***-**-**
+         v_phone_number := '+7 (' || TO_CHAR(FLOOR(DBMS_RANDOM.VALUE(900, 1000))) || ') ' ||
+                           TO_CHAR(FLOOR(DBMS_RANDOM.VALUE(100, 1000)), 'FM000') || '-' ||
+                           TO_CHAR(FLOOR(DBMS_RANDOM.VALUE(10, 100)), 'FM00') || '-' ||
+                           TO_CHAR(FLOOR(DBMS_RANDOM.VALUE(10, 100)), 'FM00');
+
+         -- Случайный выбор типа комнаты и соответствующей фиксированной цены
+         v_room_type := CASE MOD(i, 4)
+            WHEN 0 THEN 'стандарт'
+            WHEN 1 THEN 'люкс'
+            WHEN 2 THEN 'делюкс'
+            ELSE 'эконом'
+         END;
+
+         v_price_per_night := CASE v_room_type
+            WHEN 'стандарт' THEN v_standard_price
+            WHEN 'люкс' THEN v_lux_price
+            WHEN 'делюкс' THEN v_deluxe_price
+            WHEN 'эконом' THEN v_economy_price
+         END;
+
+         -- Вставка записи
+         INSERT INTO hotel_bookings (
+            booking_id, guest_name, guest_contact, room_number, check_in_date,
+            check_out_date, booking_source, room_type, price_per_night, total_amount,
+            payment_status
+         ) VALUES (
+            i,
+            v_name || ' ' || v_surname,                                   -- Случайная комбинация имени и фамилии
+            v_phone_number,                                              -- Номер телефона
+            v_room_number,                                               -- Номер комнаты
+            v_check_in_date,                                             -- Дата заезда
+            v_check_in_date + v_stay_length,                             -- Дата выезда
+            CASE MOD(i, 3) 
+               WHEN 0 THEN 'онлайн' 
+               WHEN 1 THEN 'агентство' 
+               ELSE 'напрямую' 
+            END,                                                         -- Источник бронирования
+            v_room_type,                                                 -- Тип комнаты
+            v_price_per_night,                                           -- Фиксированная цена за ночь для типа комнаты
+            v_price_per_night * v_stay_length,                           -- Общая сумма
+            CASE MOD(i, 2) 
+               WHEN 0 THEN 'оплачен' 
+               ELSE 'отменен' 
+            END                                                          -- Статус оплаты
+         );
+      END LOOP;
+      COMMIT;
+   END;
+END;
+/
+
+
+select * from hotel_bookings
+
+
+
+
+
+ЛОГ
+
+select * from hotel_bookings_log;
+drop table hotel_bookings_log
+
+
+-- 1. Создание таблицы логирования hotel_bookings_log
+CREATE TABLE hotel_bookings_log (
+   log_id NUMBER GENERATED ALWAYS AS IDENTITY,  -- Уникальный идентификатор записи лога
+   booking_id NUMBER,                           -- Идентификатор бронирования (из основной таблицы)
+   guest_name VARCHAR2(100),                    -- Имя и фамилия гостя
+   guest_contact VARCHAR2(20),                  -- Контактная информация
+   room_number VARCHAR2(3),                     -- Номер комнаты
+   check_in_date DATE,                          -- Дата заезда
+   check_out_date DATE,                         -- Дата выезда
+   booking_source VARCHAR2(50),                 -- Источник бронирования
+   room_type VARCHAR2(50),                      -- Тип комнаты
+   price_per_night NUMBER(10, 2),               -- Цена за ночь
+   total_amount NUMBER(10, 2),                  -- Общая сумма
+   payment_status VARCHAR2(20),                 -- Статус оплаты
+   log_timestamp DATE DEFAULT SYSDATE           -- Дата и время логирования изменения
+);
+
+-- 2. Создание триггера для логирования при обновлении и удалении записей
+CREATE OR REPLACE TRIGGER trg_hotel_bookings_log
+AFTER UPDATE OR DELETE ON hotel_bookings
+FOR EACH ROW
+BEGIN
+   INSERT INTO hotel_bookings_log (
+      booking_id, guest_name, guest_contact, room_number, check_in_date, 
+      check_out_date, booking_source, room_type, price_per_night, total_amount, 
+      payment_status, log_timestamp
+   ) VALUES (
+      :OLD.booking_id, 
+      :OLD.guest_name, 
+      :OLD.guest_contact, 
+      :OLD.room_number, 
+      :OLD.check_in_date, 
+      :OLD.check_out_date, 
+      :OLD.booking_source, 
+      :OLD.room_type, 
+      :OLD.price_per_night, 
+      :OLD.price_per_night * (:OLD.check_out_date - :OLD.check_in_date),  -- Пересчитанная общая стоимость
+      :OLD.payment_status, 
+      SYSDATE  -- Текущее время записи в лог
+   );
+END;
+/
+
+DECLARE
+   v_count NUMBER := 400;                   -- Общее количество записей, которые нужно добавить в лог
+   v_check_in_date DATE;                     -- Дата заезда для случайной записи
+   v_log_timestamp DATE := DATE '2022-01-01';-- Начальная дата для логирования, которая будет постепенно увеличиваться
+   v_time_increment NUMBER := 730 / v_count; -- Шаг времени для каждого логирования
+   v_price_per_night NUMBER;                 -- Цена за ночь с возможным изменением
+   v_room_type VARCHAR2(50);                 -- Тип комнаты с возможным изменением
+   v_payment_status VARCHAR2(20);            -- Статус оплаты с возможным изменением
+   v_booking_source VARCHAR2(50);            -- Источник бронирования с возможным изменением
+
+   -- Массив для хранения booking_id, доступных для логирования
+   TYPE booking_ids_type IS TABLE OF NUMBER INDEX BY PLS_INTEGER;
+   booking_ids booking_ids_type;
+
+   -- Массив для отслеживания уже удаленных booking_id
+   deleted_ids booking_ids_type;
+
+   v_random_index PLS_INTEGER;               -- Случайный индекс для выборки booking_id
+   v_random_booking_id NUMBER;               -- Случайный booking_id для логирования
+BEGIN
+   -- Загружаем все booking_id из таблицы hotel_bookings в массив
+   FOR rec IN (SELECT booking_id FROM hotel_bookings) LOOP
+      booking_ids(booking_ids.COUNT + 1) := rec.booking_id;
+   END LOOP;
+
+   FOR i IN 1..v_count LOOP
+      -- Случайно выбираем тип операции: удаление (1) или обновление (0)
+      IF DBMS_RANDOM.VALUE(0, 1) > 0.5 THEN
+         -- Операция удаления
+         LOOP
+            -- Выбираем случайный индекс из массива booking_ids
+            v_random_index := TRUNC(DBMS_RANDOM.VALUE(1, booking_ids.COUNT + 1));
+            v_random_booking_id := booking_ids(v_random_index);
+
+            -- Проверяем, что booking_id еще не удален
+            EXIT WHEN NOT deleted_ids.EXISTS(v_random_booking_id);
+         END LOOP;
+
+         -- Получаем данные для выбранного booking_id
+         SELECT check_in_date, price_per_night, room_type, payment_status, booking_source
+         INTO v_check_in_date, v_price_per_night, v_room_type, v_payment_status, v_booking_source
+         FROM hotel_bookings
+         WHERE booking_id = v_random_booking_id;
+
+         -- Устанавливаем время лога
+         v_log_timestamp := v_log_timestamp + v_time_increment;
+
+         -- Вставляем запись в таблицу логов для удаления
+         INSERT INTO hotel_bookings_log (
+            booking_id, guest_name, guest_contact, room_number, check_in_date, 
+            check_out_date, booking_source, room_type, price_per_night, total_amount, 
+            payment_status, log_timestamp
+         )
+         SELECT 
+            booking_id,
+            guest_name,
+            guest_contact,
+            room_number,
+            check_in_date,
+            check_out_date,
+            booking_source,
+            room_type,
+            price_per_night,
+            price_per_night * (check_out_date - check_in_date),  -- Общая стоимость без изменений
+            payment_status,
+            v_log_timestamp
+         FROM hotel_bookings
+         WHERE booking_id = v_random_booking_id;
+
+         -- Добавляем booking_id в список удаленных
+         deleted_ids(v_random_booking_id) := 1;
+
+      ELSE
+         -- Операция обновления
+         LOOP
+            -- Выбираем случайный индекс из массива booking_ids
+            v_random_index := TRUNC(DBMS_RANDOM.VALUE(1, booking_ids.COUNT + 1));
+            v_random_booking_id := booking_ids(v_random_index);
+
+            -- Проверяем, что booking_id еще не удален
+            EXIT WHEN NOT deleted_ids.EXISTS(v_random_booking_id);
+         END LOOP;
+
+         -- Получаем данные для выбранного booking_id
+         SELECT check_in_date, price_per_night, room_type, payment_status, booking_source
+         INTO v_check_in_date, v_price_per_night, v_room_type, v_payment_status, v_booking_source
+         FROM hotel_bookings
+         WHERE booking_id = v_random_booking_id;
+
+         -- Устанавливаем время лога
+         v_log_timestamp := v_log_timestamp + v_time_increment;
+
+         -- Изменяем случайные параметры до 3-х полей
+         IF DBMS_RANDOM.VALUE(0, 1) > 0.5 THEN
+            v_price_per_night := v_price_per_night + DBMS_RANDOM.VALUE(-20, 20);  -- Небольшое изменение цены за ночь
+         END IF;
+
+         IF DBMS_RANDOM.VALUE(0, 1) > 0.5 THEN
+            v_room_type := CASE MOD(i, 4)
+               WHEN 0 THEN 'стандарт'
+               WHEN 1 THEN 'люкс'
+               WHEN 2 THEN 'делюкс'
+               ELSE 'эконом'
+            END;  -- Случайное изменение типа комнаты
+         END IF;
+
+         IF DBMS_RANDOM.VALUE(0, 1) > 0.5 THEN
+            v_payment_status := CASE WHEN MOD(i, 2) = 0 THEN 'оплачен' ELSE 'отменен' END;  -- Случайное изменение статуса оплаты
+         END IF;
+
+         IF DBMS_RANDOM.VALUE(0, 1) > 0.5 THEN
+            v_booking_source := CASE MOD(i, 3) 
+               WHEN 0 THEN 'онлайн' 
+               WHEN 1 THEN 'агентство' 
+               ELSE 'напрямую' 
+            END;  -- Случайное изменение источника бронирования
+         END IF;
+
+         -- Вставляем запись в таблицу логов для обновления
+         INSERT INTO hotel_bookings_log (
+            booking_id, guest_name, guest_contact, room_number, check_in_date, 
+            check_out_date, booking_source, room_type, price_per_night, total_amount, 
+            payment_status, log_timestamp
+         )
+         SELECT 
+            booking_id,
+            guest_name,
+            guest_contact,
+            room_number,
+            check_in_date,
+            check_out_date,
+            v_booking_source,                         -- Измененный источник бронирования
+            v_room_type,                              -- Измененный тип комнаты
+            v_price_per_night,                        -- Измененная цена за ночь
+            v_price_per_night * (check_out_date - check_in_date),  -- Пересчитанная общая стоимость
+            v_payment_status,                         -- Измененный статус оплаты
+            v_log_timestamp                           -- Время записи в лог
+         FROM hotel_bookings
+         WHERE booking_id = v_random_booking_id;
+      END IF;
+
+      -- Коммит после каждой вставки для фиксации изменений
+      COMMIT;
+   END LOOP;
+END;
+/
+
+
+
+
+
+
+
+ну запрос
+
+
+
+CREATE OR REPLACE PROCEDURE get_table_as_of (
+   p_timestamp IN TIMESTAMP
+) AS
+BEGIN
+   -- Удаление временной таблицы, если она уже существует
+   BEGIN
+      EXECUTE IMMEDIATE 'DROP TABLE hotel_bookings_snapshot';
+   EXCEPTION
+      WHEN OTHERS THEN
+         IF SQLCODE != -942 THEN  -- Код ошибки -942 означает, что таблицы не существует
+            RAISE;
+         END IF;
+   END;
+
+   -- Создание временной таблицы для состояния на заданный момент времени
+   EXECUTE IMMEDIATE 'CREATE TABLE hotel_bookings_snapshot AS SELECT * FROM hotel_bookings WHERE 1=0';
+
+   -- Инициализация временной таблицы копией текущего состояния основной таблицы
+   INSERT INTO hotel_bookings_snapshot
+   SELECT * FROM hotel_bookings;
+
+   -- Применение изменений из таблицы логов до заданного времени
+   FOR log_rec IN (
+      SELECT * 
+      FROM hotel_bookings_log
+      WHERE log_timestamp <= p_timestamp
+      ORDER BY log_timestamp
+   ) LOOP
+      -- Обработка удалений
+      IF log_rec.payment_status = 'отменен' THEN
+         DELETE FROM hotel_bookings_snapshot
+         WHERE booking_id = log_rec.booking_id;
+      ELSE
+         -- Обработка обновлений
+         MERGE INTO hotel_bookings_snapshot tgt
+         USING (SELECT * FROM hotel_bookings_log WHERE log_id = log_rec.log_id) src
+         ON (tgt.booking_id = src.booking_id)
+         WHEN MATCHED THEN 
+            UPDATE SET 
+               tgt.guest_name = src.guest_name,
+               tgt.guest_contact = src.guest_contact,
+               tgt.room_number = src.room_number,
+               tgt.check_in_date = src.check_in_date,
+               tgt.check_out_date = src.check_out_date,
+               tgt.booking_source = src.booking_source,
+               tgt.room_type = src.room_type,
+               tgt.price_per_night = src.price_per_night,
+               tgt.total_amount = src.total_amount,
+               tgt.payment_status = src.payment_status
+         WHEN NOT MATCHED THEN 
+            INSERT VALUES (
+               src.booking_id, src.guest_name, src.guest_contact, src.room_number,
+               src.check_in_date, src.check_out_date, src.booking_source, src.room_type,
+               src.price_per_night, src.total_amount, src.payment_status
+            );
+      END IF;
+   END LOOP;
+
+   -- Удаление записей с датой заезда после указанного времени
+   DELETE FROM hotel_bookings_snapshot
+   WHERE check_in_date > p_timestamp;
+   
+   -- Вывод результата
+   DBMS_OUTPUT.PUT_LINE('Состояние таблицы hotel_bookings на ' || TO_CHAR(p_timestamp, 'YYYY-MM-DD HH24:MI:SS'));
+   FOR rec IN (SELECT * FROM hotel_bookings_snapshot ORDER BY booking_id) LOOP
+      DBMS_OUTPUT.PUT_LINE(
+         rec.booking_id || ' | ' || rec.guest_name || ' | ' || rec.room_number || ' | ' ||
+         TO_CHAR(rec.check_in_date, 'YYYY-MM-DD') || ' | ' || rec.payment_status
+      );
+   END LOOP;
+
+END;
+/
