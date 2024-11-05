@@ -412,3 +412,19 @@ BEGIN
 
 END;
 /
+
+
+UPDATE hotel_bookings
+SET 
+    guest_name = 'Алексей Иванов',               -- Обновляем имя и фамилию гостя
+    guest_contact = '+7 (999) 123-45-67',        -- Обновляем контактный телефон
+    room_number = '205',                         -- Обновляем номер комнаты
+    check_in_date = TO_DATE('2023-12-15 14:00', 'YYYY-MM-DD HH24:MI'), -- Обновляем дату и время заезда
+    check_out_date = TO_DATE('2023-12-20 12:00', 'YYYY-MM-DD HH24:MI'),-- Обновляем дату и время выезда
+    booking_source = 'агентство',                -- Обновляем источник бронирования
+    room_type = 'люкс',                          -- Обновляем тип комнаты
+    price_per_night = 1500,                      -- Обновляем цену за ночь
+    total_amount = 1500 * (TO_DATE('2023-12-20', 'YYYY-MM-DD') - TO_DATE('2023-12-15', 'YYYY-MM-DD')), -- Пересчитываем общую стоимость
+    payment_status = 'оплачен'                   -- Обновляем статус оплаты
+WHERE 
+    booking_id = 1;                              -- Указываем booking_id для обновления
