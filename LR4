@@ -487,3 +487,87 @@ WHERE booking_id = 1101;                                  -- Условие дл
 
 DELETE FROM hotel_bookings
 WHERE booking_id = 1101;
+
+
+
+
+
+
+
+
+
+
+--измененная процедура 
+CREATE OR REPLACE PROCEDURE get_hotel_bookings_at_time(p_timestamp IN TIMESTAMP)
+IS
+BEGIN
+   -- Удаление временной таблицы, если она уже существует
+   BEGIN
+      EXECUTE IMMEDIATE 'DROP TABLE hotel_bookings_temp';
+   EXCEPTION
+      WHEN OTHERS THEN
+         IF SQLCODE != -942 THEN  -- Игнорируем ошибку, если таблица не существует
+            RAISE;
+         END IF;
+   END;
+
+   -- Создание новой временной таблицы, идентичной основной таблице
+   EXECUTE IMMEDIATE 'CREATE TABLE hotel_bookings_temp AS SELECT * FROM hotel_bookings WHERE 1=0';
+
+   -- Копирование данных из основной таблицы в временную таблицу
+   EXECUTE IMMEDIATE 'INSERT INTO hotel_bookings_temp SELECT * FROM hotel_bookings';
+
+   -- Откат изменений, используя таблицу логов
+   FOR rec IN (
+      SELECT *
+      FROM hotel_bookings_log
+      WHERE log_timestamp <= p_timestamp
+      ORDER BY log_timestamp DESC
+   )
+   LOOP
+      -- Если запись была обновлена, применяем старые значения
+      IF rec.new_guest_name IS NOT NULL THEN
+         EXECUTE IMMEDIATE '
+            UPDATE hotel_bookings_temp
+            SET
+               guest_contact = :1,
+               room_number = :2,
+               check_in_date = :3,
+               check_out_date = :4,
+               booking_source = :5,
+               room_type = :6,
+               price_per_night = :7,
+               total_amount = :8,
+               payment_status = :9
+            WHERE booking_id = :10'
+         USING rec.old_guest_contact, rec.old_room_number, rec.old_check_in_date,
+               rec.old_check_out_date, rec.old_booking_source, rec.old_room_type,
+               rec.old_price_per_night, rec.old_total_amount, rec.old_payment_status,
+               rec.booking_id;
+      
+      -- Если запись была удалена, восстанавливаем старые значения
+      ELSIF rec.new_guest_name IS NULL THEN
+         BEGIN
+            EXECUTE IMMEDIATE '
+               INSERT INTO hotel_bookings_temp (
+                  booking_id, guest_name, guest_contact, room_number, check_in_date,
+                  check_out_date, booking_source, room_type, price_per_night, total_amount,
+                  payment_status
+               )
+               VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11)'
+            USING rec.booking_id, rec.old_guest_name, rec.old_guest_contact, rec.old_room_number,
+                  rec.old_check_in_date, rec.old_check_out_date, rec.old_booking_source,
+                  rec.old_room_type, rec.old_price_per_night, rec.old_total_amount, rec.old_payment_status;
+         EXCEPTION
+            WHEN DUP_VAL_ON_INDEX THEN
+               NULL;  -- Игнорируем, если запись уже существует
+         END;
+      END IF;
+   END LOOP;
+
+   -- Удаление записей из временной таблицы, где дата заезда позже указанного времени
+   EXECUTE IMMEDIATE 'DELETE FROM hotel_bookings_temp WHERE check_in_date > :1' USING p_timestamp;
+
+   COMMIT;
+END get_hotel_bookings_at_time;
+/
