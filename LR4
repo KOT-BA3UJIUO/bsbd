@@ -135,6 +135,77 @@ select * from hotel_bookings
 
 ЛОГ
 
+CREATE OR REPLACE TRIGGER trg_hotel_bookings_log
+BEFORE UPDATE OR DELETE ON hotel_bookings
+FOR EACH ROW
+BEGIN
+   -- Логирование при обновлении строки
+   IF UPDATING THEN
+      INSERT INTO hotel_bookings_log (
+         booking_id,
+         old_guest_name, new_guest_name,
+         old_guest_contact, new_guest_contact,
+         old_room_number, new_room_number,
+         old_check_in_date, new_check_in_date,
+         old_check_out_date, new_check_out_date,
+         old_booking_source, new_booking_source,
+         old_room_type, new_room_type,
+         old_price_per_night, new_price_per_night,
+         old_total_amount, new_total_amount,
+         old_payment_status, new_payment_status,
+         log_timestamp
+      ) VALUES (
+         :OLD.booking_id,
+         :OLD.guest_name, :NEW.guest_name,
+         :OLD.guest_contact, :NEW.guest_contact,
+         :OLD.room_number, :NEW.room_number,
+         :OLD.check_in_date, :NEW.check_in_date,
+         :OLD.check_out_date, :NEW.check_out_date,
+         :OLD.booking_source, :NEW.booking_source,
+         :OLD.room_type, :NEW.room_type,
+         :OLD.price_per_night, :NEW.price_per_night,
+         :OLD.total_amount, :NEW.total_amount,
+         :OLD.payment_status, :NEW.payment_status,
+         CURRENT_TIMESTAMP
+      );
+   END IF;
+
+   -- Логирование при удалении строки
+   IF DELETING THEN
+      INSERT INTO hotel_bookings_log (
+         booking_id,
+         old_guest_name, new_guest_name,
+         old_guest_contact, new_guest_contact,
+         old_room_number, new_room_number,
+         old_check_in_date, new_check_in_date,
+         old_check_out_date, new_check_out_date,
+         old_booking_source, new_booking_source,
+         old_room_type, new_room_type,
+         old_price_per_night, new_price_per_night,
+         old_total_amount, new_total_amount,
+         old_payment_status, new_payment_status,
+         log_timestamp
+      ) VALUES (
+         :OLD.booking_id,
+         :OLD.guest_name, NULL,
+         :OLD.guest_contact, NULL,
+         :OLD.room_number, NULL,
+         :OLD.check_in_date, NULL,
+         :OLD.check_out_date, NULL,
+         :OLD.booking_source, NULL,
+         :OLD.room_type, NULL,
+         :OLD.price_per_night, NULL,
+         :OLD.total_amount, NULL,
+         :OLD.payment_status, NULL,
+         CURRENT_TIMESTAMP
+      );
+   END IF;
+END;
+/
+
+
+
+
 CREATE TABLE hotel_bookings_log (
    log_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,   -- Уникальный идентификатор записи лога
    booking_id NUMBER,                                       -- Идентификатор бронирования из основной таблицы
