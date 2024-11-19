@@ -1,0 +1,122 @@
+### Необязательное задание: Создание таблицы, таблицы логов и триггера
+
+В этом задании необходимо создать базовую таблицу, таблицу аудита/логов и триггер, который будет записывать изменения в таблицу логов.
+
+---
+
+#### 1. Создать базовую таблицу
+Создаем таблицу, содержащую 5 столбцов:
+```sql
+CREATE TABLE base_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP
+);
+```
+
+---
+
+#### 2. Создать таблицу логов
+Эта таблица будет содержать информацию об изменениях в базовой таблице:
+```sql
+CREATE TABLE audit_logs (
+    log_id SERIAL PRIMARY KEY,
+    table_name VARCHAR(50) NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    record_id INT NOT NULL,
+    old_data JSONB,
+    new_data JSONB,
+    operation_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+#### 3. Создать функцию для логирования изменений
+Функция будет записывать изменения в таблицу `audit_logs`:
+```sql
+CREATE OR REPLACE FUNCTION log_audit_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Логирование операций UPDATE
+    IF (TG_OP = 'UPDATE') THEN
+        INSERT INTO audit_logs (table_name, operation_type, record_id, old_data, new_data)
+        VALUES (
+            TG_TABLE_NAME,
+            TG_OP,
+            OLD.id,
+            row_to_json(OLD),
+            row_to_json(NEW)
+        );
+    -- Логирование операций INSERT
+    ELSIF (TG_OP = 'INSERT') THEN
+        INSERT INTO audit_logs (table_name, operation_type, record_id, new_data)
+        VALUES (
+            TG_TABLE_NAME,
+            TG_OP,
+            NEW.id,
+            row_to_json(NEW)
+        );
+    -- Логирование операций DELETE
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO audit_logs (table_name, operation_type, record_id, old_data)
+        VALUES (
+            TG_TABLE_NAME,
+            TG_OP,
+            OLD.id,
+            row_to_json(OLD)
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+#### 4. Создать триггер для базовой таблицы
+Привязываем функцию к базовой таблице с использованием триггера:
+```sql
+CREATE TRIGGER audit_base_table
+AFTER INSERT OR UPDATE OR DELETE ON base_table
+FOR EACH ROW EXECUTE FUNCTION log_audit_changes();
+```
+
+---
+
+#### 5. Проверка работы триггера
+Вставьте, обновите и удалите данные в базовой таблице, чтобы проверить, как записи логируются.
+
+**Пример вставки данных:**
+```sql
+INSERT INTO base_table (name, description) VALUES ('Test Name', 'Test Description');
+```
+
+**Пример обновления данных:**
+```sql
+UPDATE base_table SET name = 'Updated Name' WHERE id = 1;
+```
+
+**Пример удаления данных:**
+```sql
+DELETE FROM base_table WHERE id = 1;
+```
+
+---
+
+#### 6. Просмотр логов
+Чтобы проверить записи в таблице `audit_logs`, выполните:
+```sql
+SELECT * FROM audit_logs ORDER BY operation_timestamp DESC;
+```
+
+---
+
+### Результат
+- **Базовая таблица (`base_table`)**: Хранит основные данные.
+- **Таблица логов (`audit_logs`)**: Хранит записи об операциях (INSERT, UPDATE, DELETE).
+- **Триггер**: Автоматически записывает изменения в базовой таблице в лог.
+
+Это решение позволяет отслеживать любые изменения, сделанные в базовой таблице, что важно для обеспечения безопасности и аудита данных.
