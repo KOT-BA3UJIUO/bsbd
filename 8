@@ -1,0 +1,147 @@
+### Пример предметной области: **Система управления библиотекой**
+
+#### Описание предметной области
+Управление библиотекой включает несколько типов пользователей и ролей, с разными уровнями доступа и обязанностями:
+
+1. **Роли:**
+   - **Admin**: Управляет всеми аспектами системы.
+   - **Librarian**: Работа с книгами, учет выдачи и возврата.
+   - **Member**: Читатели, могут просматривать каталог книг и брать их в аренду.
+
+2. **Пользователи:**
+   - Администратор (например, `admin_user`).
+   - Два библиотекаря (например, `lib1_user`, `lib2_user`).
+   - Два читателя (например, `reader1_user`, `reader2_user`).
+
+---
+
+### Реализация в PostgreSQL
+
+#### 1. Создание ролей
+```sql
+-- Создание ролей
+CREATE ROLE admin_role;
+CREATE ROLE librarian_role;
+CREATE ROLE member_role;
+```
+
+---
+
+#### 2. Создание пользователей и назначение ролей
+```sql
+-- Создание пользователей
+CREATE USER admin_user WITH PASSWORD 'admin_pass';
+CREATE USER lib1_user WITH PASSWORD 'librarian1_pass';
+CREATE USER lib2_user WITH PASSWORD 'librarian2_pass';
+CREATE USER reader1_user WITH PASSWORD 'reader1_pass';
+CREATE USER reader2_user WITH PASSWORD 'reader2_pass';
+
+-- Назначение ролей пользователям
+GRANT admin_role TO admin_user;
+GRANT librarian_role TO lib1_user;
+GRANT librarian_role TO lib2_user;
+GRANT member_role TO reader1_user;
+GRANT member_role TO reader2_user;
+```
+
+---
+
+#### 3. Пример базы данных
+Создаем таблицы для книг, учет выдачи и пользователей.
+
+```sql
+-- Схема для библиотеки
+CREATE SCHEMA library;
+
+-- Таблица книг
+CREATE TABLE library.books (
+    book_id SERIAL PRIMARY KEY,
+    title VARCHAR(255),
+    author VARCHAR(255),
+    available BOOLEAN DEFAULT TRUE
+);
+
+-- Таблица учета выдачи книг
+CREATE TABLE library.loans (
+    loan_id SERIAL PRIMARY KEY,
+    book_id INT REFERENCES library.books(book_id),
+    user_id VARCHAR(50),
+    loan_date DATE DEFAULT CURRENT_DATE,
+    return_date DATE
+);
+```
+
+---
+
+#### 4. Назначение прав ролям
+1. **Администратор (`admin_role`)**:
+   - Полный доступ ко всем объектам.
+```sql
+GRANT ALL ON ALL TABLES IN SCHEMA library TO admin_role;
+GRANT USAGE ON SCHEMA library TO admin_role;
+```
+
+2. **Библиотекарь (`librarian_role`)**:
+   - Просмотр и управление книгами, учет выдачи и возврата.
+```sql
+GRANT SELECT, INSERT, UPDATE ON library.books TO librarian_role;
+GRANT SELECT, INSERT, UPDATE ON library.loans TO librarian_role;
+GRANT USAGE ON SCHEMA library TO librarian_role;
+```
+
+3. **Читатель (`member_role`)**:
+   - Только просмотр каталога книг.
+```sql
+GRANT SELECT ON library.books TO member_role;
+GRANT USAGE ON SCHEMA library TO member_role;
+```
+
+---
+
+#### 5. Демонстрация сценариев использования
+
+1. **Управление пользователями:**
+   - Когда нужно добавить нового библиотекаря, достаточно создать пользователя и назначить ему роль `librarian_role`.
+
+   ```sql
+   CREATE USER lib3_user WITH PASSWORD 'librarian3_pass';
+   GRANT librarian_role TO lib3_user;
+   ```
+
+2. **Управление правами:**
+   - Если необходимо ограничить читателям доступ к определённым полям, изменяем права для роли `member_role`, а не для каждого пользователя отдельно.
+
+3. **Ситуации, где удобнее использовать пользователей:**
+   - Когда требуется индивидуальный учет действий каждого пользователя (например, логирование операций конкретного библиотекаря).
+
+4. **Ситуации, где удобнее использовать роли:**
+   - Когда множество пользователей имеют одинаковые права, как у читателей.
+
+---
+
+#### 6. Пример выполнения операций пользователями
+
+1. **Читатель просматривает книги:**
+```sql
+SET ROLE reader1_user;
+SELECT * FROM library.books WHERE available = TRUE;
+```
+
+2. **Библиотекарь добавляет книгу:**
+```sql
+SET ROLE lib1_user;
+INSERT INTO library.books (title, author) VALUES ('PostgreSQL Basics', 'John Doe');
+```
+
+3. **Администратор управляет схемой:**
+```sql
+SET ROLE admin_user;
+ALTER TABLE library.books ADD COLUMN publication_year INT;
+```
+
+---
+
+#### Заключение
+
+- **Роли удобны**, когда нужно централизованно управлять правами для группы пользователей (например, всем библиотекарям).
+- **Индивидуальные пользователи подходят**, если требуется детализация и учет действий конкретного человека (например, для логирования).
