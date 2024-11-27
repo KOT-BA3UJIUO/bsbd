@@ -1,0 +1,248 @@
+Теперь у вас есть два лабораторных задания: №7 (контейнерная архитектура) и №9 (разграничение сетевого доступа). Я опишу пошаговые действия для выполнения обоих, а затем вы сможете начать выполнение на своих машинах.
+
+---
+
+### Лабораторная работа №7
+#### Задание 1
+1. **Настройка Oracle для работы с контейнерными базами**:
+   - Если Oracle уже установлен, убедитесь, что вы знаете текущую конфигурацию.
+   - Для переустановки:
+     - Удалите все старые версии Oracle, следуя инструкциям из "Дополнительных материалов".
+     - При установке выберите "Подключаемая база данных" (**Pluggable Database**).
+     - В поле `Global database name` введите свои ФИО.
+   - Настройте порт `11521`:
+     - Измените порт в файле `listener.ora`:
+       ```
+       (ADDRESS = (PROTOCOL = TCP)(HOST = 0.0.0.0)(PORT = 11521))
+       ```
+     - Измените порт в `tnsnames.ora`:
+       ```
+       YOUR_DB_NAME =
+         (DESCRIPTION =
+           (ADDRESS = (PROTOCOL = TCP)(HOST = 0.0.0.0)(PORT = 11521))
+           (CONNECT_DATA =
+             (SERVER = DEDICATED)
+             (SERVICE_NAME = YOUR_DB_NAME)
+           )
+         )
+       ```
+     - Перезапустите службы:
+       ```bash
+       net stop OracleService_YOUR_DB_NAME
+       net start OracleService_YOUR_DB_NAME
+       ```
+
+2. **Добавление правил брандмауэра**:
+   - Разрешите порт `11521`:
+     ```bash
+     sudo ufw allow 11521/tcp
+     ```
+
+#### Задание 2
+1. **Подключение под общим пользователем**:
+   - Подключитесь через SQL*Plus:
+     ```bash
+     sqlplus sys@localhost:11521/YOUR_DB_NAME as sysdba
+     ```
+   - Общий пользователь имеет странное имя, так как он настроен для работы с контейнерами.
+
+2. **Создание контейнера**:
+   ```sql
+   CREATE PLUGGABLE DATABASE my_pdb
+   ADMIN USER pdb_admin IDENTIFIED BY password
+   FILE_NAME_CONVERT = ('/base_path/', '/new_path/');
+   ```
+
+3. **Список контейнеров и включение**:
+   ```sql
+   SELECT con_id, name, open_mode FROM v$pdbs;
+   ALTER PLUGGABLE DATABASE my_pdb OPEN;
+   ```
+
+4. **Создание пользователя**:
+   ```sql
+   CREATE USER test_user IDENTIFIED BY password;
+   GRANT CONNECT TO test_user;
+   ```
+
+#### Задание 3
+1. **Список сессий и пользователей**:
+   ```sql
+   SELECT sid, serial#, username FROM v$session;
+   ```
+
+2. **Работа с контейнером**:
+   ```sql
+   ALTER SESSION SET CONTAINER = my_pdb;
+   CREATE USER pdb_user IDENTIFIED BY password;
+   GRANT CONNECT TO pdb_user;
+   ```
+
+3. **Текущий контейнер**:
+   ```sql
+   SELECT SYS_CONTEXT('USERENV', 'CON_NAME') FROM dual;
+   ```
+
+#### Задание 4
+1. **Клонирование контейнера**:
+   ```sql
+   CREATE PLUGGABLE DATABASE clone_pdb FROM my_pdb
+   FILE_NAME_CONVERT = ('/path_to_source/', '/path_to_clone/');
+   ALTER PLUGGABLE DATABASE clone_pdb OPEN;
+   ```
+
+2. **Отключение контейнера**:
+   ```sql
+   ALTER PLUGGABLE DATABASE my_pdb CLOSE;
+   ```
+
+3. **Удаление контейнера**:
+   ```sql
+   DROP PLUGGABLE DATABASE clone_pdb INCLUDING DATAFILES;
+   ```
+
+---
+
+### Лабораторная работа №9
+Для выполнения следуйте инструкциям, которые я уже описал ранее: настройка `pg_hba.conf`, изменение параметров подключения, триггеры и конфигурация сетевого доступа для PostgreSQL и Oracle.
+
+---
+
+Если потребуется помощь в настройке или уточнение деталей, дайте знать.
+
+
+
+
+
+
+
+-------------------------------------------------------------
+
+
+Вот пошаговая инструкция по полному удалению Oracle Database на Windows **через консоль**, чтобы избежать удаления лишних файлов и сохранить системную стабильность:
+
+---
+
+### **Шаги для полного удаления Oracle через консоль**
+
+#### 1. **Остановка служб Oracle**
+1. Откройте командную строку с правами администратора.
+2. Выполните команду для просмотра всех служб:
+   ```cmd
+   sc query | find "Oracle"
+   ```
+   Это покажет список всех служб Oracle.
+
+3. Остановите каждую службу Oracle:
+   ```cmd
+   net stop OracleServiceORCL
+   net stop OracleOraDb...TNSListener
+   ```
+   Повторите для всех служб, которые начинаются с `Oracle`.
+
+---
+
+#### 2. **Удаление экземпляра базы данных**
+1. Убедитесь, что вы знаете имя вашего экземпляра базы данных (например, `ORCL`).
+2. Удалите базу данных с помощью `dbca` (Database Configuration Assistant):
+   ```cmd
+   dbca -silent -deleteDatabase -sourceDB ORCL
+   ```
+   Если вы не уверены в имени экземпляра, проверьте конфигурацию в файле `oratab` (если он есть) или в переменной `ORACLE_SID`.
+
+---
+
+#### 3. **Удаление переменных среды**
+1. Удалите переменные среды, связанные с Oracle:
+   - Проверьте текущие переменные:
+     ```cmd
+     set | findstr ORACLE
+     ```
+   - Удалите переменные:
+     ```cmd
+     setx ORACLE_HOME "" /M
+     setx ORACLE_SID "" /M
+     setx TNS_ADMIN "" /M
+     ```
+   - Очистите пути, связанные с Oracle, из `PATH`:
+     ```cmd
+     set PATH=%PATH:;C:\Oracle\product\...;=%
+     ```
+     Убедитесь, что заменили путь на тот, который относится к вашей установке Oracle.
+
+---
+
+#### 4. **Удаление служб из системы**
+1. С помощью командной строки удалите службы Oracle:
+   - Узнайте список всех служб Oracle:
+     ```cmd
+     sc query | find "Oracle"
+     ```
+   - Удалите каждую службу:
+     ```cmd
+     sc delete OracleServiceORCL
+     sc delete OracleOraDb...TNSListener
+     ```
+   Повторите для всех служб, связанных с Oracle.
+
+---
+
+#### 5. **Удаление установочных файлов**
+1. Перейдите в каталог установки Oracle:
+   ```cmd
+   cd C:\Oracle\product\12.2.0\dbhome_1
+   ```
+   (замените путь на актуальный для вашей системы).
+
+2. Удалите каталог Oracle:
+   ```cmd
+   rmdir /S /Q C:\Oracle\product\12.2.0\dbhome_1
+   ```
+
+---
+
+#### 6. **Удаление сетевых файлов**
+1. Перейдите в каталог сетевых настроек:
+   ```cmd
+   cd C:\Oracle\product\12.2.0\network\admin
+   ```
+2. Удалите сетевые конфигурационные файлы:
+   ```cmd
+   del listener.ora
+   del tnsnames.ora
+   del sqlnet.ora
+   ```
+
+---
+
+#### 7. **Очистка временных файлов**
+1. Очистите временные файлы Oracle:
+   ```cmd
+   del /S /Q %TEMP%\oracle*
+   ```
+
+---
+
+#### 8. **Удаление записей из реестра**
+1. Откройте редактор реестра через консоль:
+   ```cmd
+   regedit
+   ```
+2. Через консоль удалите ключи:
+   ```cmd
+   reg delete "HKEY_LOCAL_MACHINE\SOFTWARE\Oracle" /f
+   reg delete "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\OracleServiceORCL" /f
+   reg delete "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\OracleOraDb...TNSListener" /f
+   ```
+
+---
+
+#### 9. **Перезагрузка системы**
+Перезагрузите компьютер, чтобы убедиться, что все изменения вступили в силу:
+```cmd
+shutdown /r /t 0
+```
+
+---
+
+Эти команды удаляют Oracle полностью. Будьте внимательны при выполнении, чтобы случайно не удалить системные файлы. Дайте знать, если потребуется помощь!
